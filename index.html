@@ -188,9 +188,9 @@
                 </label>
                 <select id="shiftBreakMinutes"
                         class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm">
-                  <option value="0">0 mins (No break)</option>
+                  <option value="0" selected>0 mins (No break)</option>
                   <option value="15">15 mins</option>
-                  <option value="30" selected>30 mins (Standard lunch)</option>
+                  <option value="30">30 mins (Standard lunch)</option>
                   <option value="45">45 mins</option>
                   <option value="60">60 mins (1 hour)</option>
                 </select>
@@ -257,7 +257,7 @@
               <h3 class="text-lg font-bold text-white">Calculated Earnings</h3>
             </div>
             <div class="text-right">
-              <span id="previewHours" class="text-sm font-bold text-slate-300 font-mono">7.50 hrs</span>
+              <span id="previewHours" class="text-sm font-bold text-slate-300 font-mono">0.00 hrs</span>
               <span id="previewRate" class="block text-[11px] text-slate-500 font-mono">$12.00/hr</span>
             </div>
           </div>
@@ -268,8 +268,8 @@
               Estimated Net Take-Home
             </span>
             <div class="flex items-baseline justify-between">
-              <span id="previewNet" class="text-4xl font-black text-emerald-400 font-mono tracking-tight">$76.05</span>
-              <span id="previewNetPerHour" class="text-xs font-bold text-emerald-300/80 bg-emerald-500/10 px-2 py-1 rounded-md">$10.14/hr net</span>
+              <span id="previewNet" class="text-4xl font-black text-emerald-400 font-mono tracking-tight">$0.00</span>
+              <span id="previewNetPerHour" class="text-xs font-bold text-emerald-300/80 bg-emerald-500/10 px-2 py-1 rounded-md">$0.00/hr net</span>
             </div>
             <p class="text-[11px] text-emerald-400/70 mt-2">After all Columbus, OH municipal, FICA, State, & Federal deductions.</p>
           </div>
@@ -277,14 +277,14 @@
           <!-- Gross Pay -->
           <div class="flex justify-between items-center py-2.5 px-3 bg-slate-800/40 rounded-xl text-sm">
             <span class="text-slate-400 font-medium">Gross Pay (Hours &times; $12.00)</span>
-            <span id="previewGross" class="font-bold text-white font-mono">$90.00</span>
+            <span id="previewGross" class="font-bold text-white font-mono">$0.00</span>
           </div>
 
           <!-- Columbus, OH Itemized Tax Deductions -->
           <div class="bg-slate-950/70 rounded-2xl p-4 border border-slate-800/80 space-y-2.5 text-xs">
             <div class="flex justify-between items-center pb-2 border-b border-slate-800">
               <span class="font-bold text-slate-300 uppercase tracking-wider">Columbus, OH Tax Deductions</span>
-              <span id="previewEffectiveRate" class="text-[11px] font-bold text-rose-400">15.5% total</span>
+              <span id="previewEffectiveRate" class="text-[11px] font-bold text-rose-400">0.0% total</span>
             </div>
 
             <!-- Columbus City Tax -->
@@ -293,7 +293,7 @@
                 <span class="w-2 h-2 rounded-full bg-rose-500"></span>
                 <span>Columbus Municipal Tax (2.50%)</span>
               </div>
-              <span id="previewColumbusTax" class="font-mono text-rose-300 font-semibold">-$2.25</span>
+              <span id="previewColumbusTax" class="font-mono text-rose-300 font-semibold">-$0.00</span>
             </div>
 
             <!-- FICA -->
@@ -302,7 +302,7 @@
                 <span class="w-2 h-2 rounded-full bg-amber-500"></span>
                 <span>FICA (SS 6.2% + Med 1.45% = 7.65%)</span>
               </div>
-              <span id="previewFicaTax" class="font-mono text-rose-300 font-semibold">-$6.89</span>
+              <span id="previewFicaTax" class="font-mono text-rose-300 font-semibold">-$0.00</span>
             </div>
 
             <!-- Ohio State -->
@@ -311,7 +311,7 @@
                 <span class="w-2 h-2 rounded-full bg-sky-400"></span>
                 <span>Ohio State Tax (1.10% est.)</span>
               </div>
-              <span id="previewOhioTax" class="font-mono text-rose-300 font-semibold">-$0.99</span>
+              <span id="previewOhioTax" class="font-mono text-rose-300 font-semibold">-$0.00</span>
             </div>
 
             <!-- Federal -->
@@ -320,12 +320,12 @@
                 <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
                 <span>Federal Income Tax (4.25% est.)</span>
               </div>
-              <span id="previewFederalTax" class="font-mono text-rose-300 font-semibold">-$3.83</span>
+              <span id="previewFederalTax" class="font-mono text-rose-300 font-semibold">-$0.00</span>
             </div>
 
             <div class="pt-2 border-t border-slate-800 flex justify-between items-center font-bold text-slate-200">
               <span>Total Deductions</span>
-              <span id="previewTotalTax" class="font-mono text-rose-400">-$13.95</span>
+              <span id="previewTotalTax" class="font-mono text-rose-400">-$0.00</span>
             </div>
           </div>
 

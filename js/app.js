@@ -47,15 +47,17 @@ class DailyPayApp {
     const localDateStr = this.formatDateToLocalYMD(today);
     dateInput.value = localDateStr;
 
-    // Default shift times: 9:00 AM to 5:00 PM with 30 min break
+    // Leave start and end times blank so user enters when to when they worked
     const startInput = document.getElementById("shiftStartTime");
     const endInput = document.getElementById("shiftEndTime");
     const breakInput = document.getElementById("shiftBreakMinutes");
     const rateInput = document.getElementById("shiftHourlyRate");
+    const hoursInput = document.getElementById("shiftTotalHours");
 
-    if (startInput && !startInput.value) startInput.value = "09:00";
-    if (endInput && !endInput.value) endInput.value = "17:00";
-    if (breakInput && !breakInput.value) breakInput.value = "30";
+    if (startInput) startInput.value = "";
+    if (endInput) endInput.value = "";
+    if (breakInput) breakInput.value = "0";
+    if (hoursInput) hoursInput.value = "";
     if (rateInput && !rateInput.value) rateInput.value = (window.taxEngine.config.hourlyRate || 12).toFixed(2);
 
     this.calculateShiftHours();
@@ -219,7 +221,7 @@ class DailyPayApp {
     const hoursInput = document.getElementById("shiftTotalHours");
 
     if (!startVal || !endVal) {
-      if (hoursInput) hoursInput.value = "0.00";
+      if (hoursInput) hoursInput.value = "";
       this.updateLiveCalculations();
       return;
     }
@@ -264,8 +266,8 @@ class DailyPayApp {
     this.setText("previewFederalTax", `-${window.taxEngine.formatCurrency(calc.taxes.federal)}`);
     this.setText("previewTotalTax", `-${window.taxEngine.formatCurrency(calc.taxes.totalTax)}`);
     this.setText("previewNet", window.taxEngine.formatCurrency(calc.netPay));
-    this.setText("previewEffectiveRate", `${calc.effectiveTaxRate}% effective tax`);
-    this.setText("previewNetPerHour", `${window.taxEngine.formatCurrency(calc.effectiveHourlyTakeHome)}/hr net`);
+    this.setText("previewEffectiveRate", hours > 0 ? `${calc.effectiveTaxRate}% effective tax` : "0.0% tax");
+    this.setText("previewNetPerHour", hours > 0 ? `${window.taxEngine.formatCurrency(calc.effectiveHourlyTakeHome)}/hr net` : "$0.00/hr net");
   }
 
   /**

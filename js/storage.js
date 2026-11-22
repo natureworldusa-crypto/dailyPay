@@ -14,15 +14,16 @@ class DataStore {
   constructor() {
     this.records = this.loadRecords();
     this.settings = this.loadSettings();
-
-    // If fresh install with no records, load realistic initial sample data
-    if (this.records.length === 0) {
-      this.loadSampleData();
-    }
   }
 
   loadRecords() {
     try {
+      // Clear dummy sample data if previously loaded on older version
+      if (!localStorage.getItem("dailyPay_cleaned_v2")) {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.setItem("dailyPay_cleaned_v2", "true");
+        return [];
+      }
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
