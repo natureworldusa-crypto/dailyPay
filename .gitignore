@@ -1,0 +1,10 @@
+# Logs
+*.log
+test.txt
+js/test.js
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
