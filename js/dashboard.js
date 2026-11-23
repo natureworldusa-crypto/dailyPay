@@ -718,8 +718,7 @@ class DashboardManager {
             ${window.taxEngine.formatCurrency(calc.netPay)}
           </td>
           <td class="py-3 px-4 text-right">
-            <button onclick="window.app.editShift('${r.date}')" class="text-xs font-semibold text-blue-400 hover:text-blue-300 mr-2">Edit</button>
-            <button onclick="window.app.deleteShift('${r.date}')" class="text-xs font-semibold text-rose-400 hover:text-rose-300">Delete</button>
+            <button onclick="window.app.editShift('${r.date}')" class="text-xs font-semibold text-blue-400 hover:text-blue-300">Edit</button>
           </td>
         </tr>
       `;

@@ -149,9 +149,6 @@
         <button type="button" onclick="window.app.pushToSheet()" class="btn-sheet-push px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5">
           <span>⬆️ Push to Sheet</span>
         </button>
-        <button type="button" onclick="window.app.clearLocalData()" class="px-3 py-2 bg-slate-800 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-800 rounded-xl text-xs font-semibold transition-colors" title="Clear local shifts to match empty sheet">
-          🗑️ Clear App Data
-        </button>
         <button type="button" onclick="document.getElementById('openSettingsBtn').click()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-semibold transition-colors">
           ⚙️ Settings
         </button>
@@ -874,14 +871,10 @@
         <label for="settingsFicaExempt" class="text-xs text-slate-400">FICA Tax Exempt (e.g. F-1 Student on campus)</label>
       </div>
 
-      <!-- Data Reset & Samples -->
-      <div class="pt-3 border-t border-slate-800 flex justify-between items-center text-xs">
-        <button type="button" id="resetSampleDataBtn" class="text-slate-400 hover:text-slate-200">
-          Load Sample Data
-        </button>
-        <button type="button" id="clearAllDataBtn" class="text-rose-400 hover:text-rose-300">
-          Clear All Records
-        </button>
+      <!-- Database Policy Info -->
+      <div class="pt-3 border-t border-slate-800 text-xs text-slate-400 flex items-center gap-2">
+        <span>🔒</span>
+        <span>Google Sheet is the central database. Deletions and data modifications are managed directly in Google Sheets by admins.</span>
       </div>
 
       <!-- Save Button -->

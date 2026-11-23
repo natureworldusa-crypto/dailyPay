@@ -130,14 +130,6 @@ function doPost(e) {
       });
     }
 
-    if (action === "clearAll") {
-      return handleClearAll();
-    }
-
-    if (action === "delete") {
-      return handleDelete(contents.date);
-    }
-
     if (action === "upsert") {
       return handleUpsert(contents.data || contents);
     }
@@ -217,21 +209,6 @@ function handleUpsert(data) {
       message: "New record for " + dateTarget + " added successfully."
     });
   }
-}
-
-/**
- * Clear all records from sheet (leaves headers intact)
- */
-function handleClearAll() {
-  const sheet = getOrCreateSheet();
-  const lastRow = sheet.getLastRow();
-  if (lastRow > 1) {
-    sheet.deleteRows(2, lastRow - 1);
-  }
-  return createJsonResponse({
-    status: "success",
-    message: "All shift records cleared from Google Sheet."
-  });
 }
 
 /**

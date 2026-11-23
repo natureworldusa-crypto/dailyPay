@@ -138,15 +138,20 @@ class GoogleSheetsClient {
 
   /**
    * Fetch all records from Google Sheet and merge/replace locally
+   * @param {boolean} silent If true, suppresses visual syncing states for background real-time polling
    */
-  async fetchFromSheet() {
+  async fetchFromSheet(silent = false) {
     const url = this.getUrl();
     if (!this.isConnected()) {
       return { success: false, message: "Google Sheet URL not configured." };
     }
 
+    if (this.isSyncing) return { success: false, inProgress: true };
+
     this.isSyncing = true;
-    this.updateStatusBadge("syncing");
+    if (!silent) {
+      this.updateStatusBadge("syncing");
+    }
 
     try {
       const fetchUrl = `${url}${url.includes("?") ? "&" : "?"}_t=${Date.now()}`;
@@ -161,12 +166,20 @@ class GoogleSheetsClient {
 
       const data = await response.json();
       if (data.status === "success" && Array.isArray(data.records)) {
+        // Compare with current store before updating
+        const prevRecords = window.dataStore.records;
+        const prevKeys = prevRecords.map(r => `${r.date}_${r.totalHours}_${r.hourlyRate}`).join("|");
+        const newKeys = data.records.map(r => `${r.date}_${r.totalHours}_${r.hourlyRate}`).join("|");
+        const hasChanged = prevKeys !== newKeys || prevRecords.length !== data.records.length;
+
         // ALWAYS synchronize local storage with the exact state of the Google Sheet (even if 0 records!)
         window.dataStore.setAllRecords(data.records);
         this.lastSyncTime = new Date();
         this.updateStatusBadge("synced");
+
         return {
           success: true,
+          hasChanged: hasChanged,
           count: data.records.length,
           message: data.records.length > 0 
             ? `Successfully loaded ${data.records.length} records from Google Sheet.`
@@ -176,53 +189,16 @@ class GoogleSheetsClient {
         throw new Error(data.message || "Failed to parse records.");
       }
     } catch (err) {
-      console.error("Error fetching from Google Sheet:", err);
-      this.updateStatusBadge("error");
+      if (!silent) {
+        console.error("Error fetching from Google Sheet:", err);
+        this.updateStatusBadge("error");
+      }
       return {
         success: false,
         message: "Failed to fetch from Google Sheet: " + err.message
       };
     } finally {
       this.isSyncing = false;
-    }
-  }
-
-  /**
-   * Delete a record from Google Sheet by date
-   */
-  async deleteFromSheet(dateStr) {
-    const url = this.getUrl();
-    if (!this.isConnected()) return;
-
-    try {
-      await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "delete", date: dateStr })
-      });
-    } catch (err) {
-      console.warn("Failed to delete from sheet:", err);
-    }
-  }
-
-  /**
-   * Clear all records in Google Sheet (rows 2+)
-   */
-  async clearAllInSheet() {
-    const url = this.getUrl();
-    if (!this.isConnected()) return { success: false, message: "Not connected" };
-
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "clearAll" })
-      });
-      const data = await response.json();
-      return { success: data && data.status === "success", message: data && data.message };
-    } catch (err) {
-      console.warn("Failed to clear Google Sheet:", err);
-      return { success: false, error: err.message };
     }
   }
 
@@ -315,13 +291,13 @@ class GoogleSheetsClient {
         break;
       case "synced":
         if (badge) badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20";
-        if (text) text.textContent = timeStr;
-        if (icon) icon.className = "w-2 h-2 rounded-full bg-emerald-500";
+        if (text) text.textContent = "Live Synced with Sheet";
+        if (icon) icon.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
         if (mainTag) {
           mainTag.className = "text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-          mainTag.textContent = "Connected ✓";
+          mainTag.textContent = "Live Real-Time Sync";
         }
-        if (mainSub) mainSub.textContent = `All shifts automatically upsert by date into your Google Sheet. Last synced: ${this.lastSyncTime ? this.lastSyncTime.toLocaleTimeString() : 'Just now'}`;
+        if (mainSub) mainSub.textContent = `Real-time sync active. Google Sheet is your live database. Checked: ${this.lastSyncTime ? this.lastSyncTime.toLocaleTimeString() : 'Just now'}`;
         break;
       case "error":
         if (badge) badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 text-rose-500 border border-rose-500/20";

@@ -22,36 +22,15 @@ class DailyPayApp {
     this.renderAllViews();
     this.checkUpsertStatus();
 
-    // Check Google Sheet connection on start
+    // Initialize Google Sheet live connection & start real-time sync
     if (window.sheetsClient.isConnected()) {
       window.sheetsClient.updateStatusBadge("synced");
-      // Auto-fetch if enabled
-      if (window.dataStore.settings.autoSync) {
-        this.pullFromSheet(true);
-      }
+      this.syncRealtime();
     } else {
       window.sheetsClient.updateStatusBadge("local");
     }
 
-    // Auto-sync when returning to the tab from Google Sheets
-    window.addEventListener("focus", () => {
-      if (window.sheetsClient && window.sheetsClient.isConnected() && window.dataStore.settings.autoSync) {
-        this.pullFromSheet(true);
-      }
-    });
-
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && window.sheetsClient && window.sheetsClient.isConnected() && window.dataStore.settings.autoSync) {
-        this.pullFromSheet(true);
-      }
-    });
-
-    // Periodic auto-sync every 25 seconds if active
-    setInterval(() => {
-      if (document.visibilityState === "visible" && window.sheetsClient && window.sheetsClient.isConnected() && window.dataStore.settings.autoSync) {
-        this.pullFromSheet(true);
-      }
-    }, 25000);
+    this.startRealtimeSync();
   }
 
   /**
@@ -467,26 +446,43 @@ class DailyPayApp {
   }
 
   /**
-   * Clear all local shifts (e.g. after emptying Google Sheet)
+   * Continuous Real-Time Synchronization with Google Sheet Database
    */
-  async clearLocalData() {
-    const isConnected = window.sheetsClient && window.sheetsClient.isConnected();
-    const confirmMsg = isConnected
-      ? "Reset and clear all shifts? This clears all local data and will also remove all records in your connected Google Sheet."
-      : "Reset and clear all local shifts in this app? This resets the dashboard and history to completely empty.";
+  startRealtimeSync() {
+    // 1. Instant sync when returning to tab (e.g. after editing/deleting in Google Sheets)
+    window.addEventListener("focus", () => {
+      this.syncRealtime();
+    });
 
-    if (confirm(confirmMsg)) {
-      window.dataStore.clearAll();
-      if (isConnected) {
-        try {
-          await window.sheetsClient.clearAllInSheet();
-        } catch (e) {
-          console.warn("Could not clear Google Sheet:", e);
-        }
+    // 2. Instant sync on visibility change
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        this.syncRealtime();
       }
-      this.renderAllViews();
-      this.checkUpsertStatus();
-      this.showToast("All records cleared. Dashboard & tabs are now empty.", "info");
+    });
+
+    // 3. Continuous 5-second polling interval for live real-time metrics
+    if (this.realtimeTimer) clearInterval(this.realtimeTimer);
+    this.realtimeTimer = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        this.syncRealtime();
+      }
+    }, 5000);
+  }
+
+  async syncRealtime() {
+    if (!window.sheetsClient || !window.sheetsClient.isConnected()) return;
+    if (window.sheetsClient.isSyncing) return;
+
+    try {
+      const res = await window.sheetsClient.fetchFromSheet(true);
+      if (res && res.success && res.hasChanged) {
+        // Sheet data was modified or deleted directly in Google Sheets by admin!
+        this.renderAllViews();
+        this.checkUpsertStatus();
+      }
+    } catch (e) {
+      // Background silent sync
     }
   }
 
@@ -516,26 +512,6 @@ class DailyPayApp {
     // Scroll to form smoothly
     document.getElementById("workHoursForm").scrollIntoView({ behavior: "smooth", block: "center" });
     this.showToast(`Loaded shift for ${dateStr} into form for editing.`, "info");
-  }
-
-  /**
-   * Delete shift
-   */
-  async deleteShift(dateStr) {
-    if (!confirm(`Are you sure you want to delete the shift for ${dateStr}?`)) {
-      return;
-    }
-
-    window.dataStore.deleteRecord(dateStr);
-    this.showToast(`Deleted shift for ${dateStr}.`, "info");
-
-    // Delete from sheet if connected
-    if (window.sheetsClient.isConnected()) {
-      window.sheetsClient.deleteFromSheet(dateStr);
-    }
-
-    this.renderAllViews();
-    this.checkUpsertStatus();
   }
 
   /**
@@ -591,9 +567,7 @@ class DailyPayApp {
     }
 
     // Silently check Google Sheet for updates or deletions whenever user switches tabs
-    if (window.sheetsClient && window.sheetsClient.isConnected() && window.dataStore.settings.autoSync) {
-      this.pullFromSheet(true);
-    }
+    this.syncRealtime();
   }
 
   /**
@@ -667,8 +641,7 @@ class DailyPayApp {
             ${r.notes || '<span class="text-slate-600">--</span>'}
           </td>
           <td class="py-3 px-4 text-right whitespace-nowrap">
-            <button onclick="window.app.editShift('${r.date}')" class="px-2.5 py-1 text-xs font-semibold bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-md mr-1.5 transition-colors">Edit</button>
-            <button onclick="window.app.deleteShift('${r.date}')" class="px-2.5 py-1 text-xs font-semibold bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-md transition-colors">Delete</button>
+            <button onclick="window.app.editShift('${r.date}')" class="px-2.5 py-1 text-xs font-semibold bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-md transition-colors">Edit</button>
           </td>
         </tr>
       `;
@@ -695,8 +668,6 @@ class DailyPayApp {
     const testSheetBtn = document.getElementById("testSheetConnectionBtn");
     const syncNowBtn = document.getElementById("syncNowBtn");
     const bulkPushBtn = document.getElementById("bulkPushBtn");
-    const resetSampleDataBtn = document.getElementById("resetSampleDataBtn");
-    const clearAllDataBtn = document.getElementById("clearAllDataBtn");
 
     if (openSettingsBtn && settingsModal) {
       openSettingsBtn.addEventListener("click", () => {
@@ -795,28 +766,6 @@ class DailyPayApp {
     // Bulk Push to Sheet
     if (bulkPushBtn) {
       bulkPushBtn.addEventListener("click", () => this.pushToSheet());
-    }
-
-    // Reset Sample Data
-    if (resetSampleDataBtn) {
-      resetSampleDataBtn.addEventListener("click", () => {
-        if (confirm("Reset records with demo Columbus OH shifts?")) {
-          window.dataStore.loadSampleData();
-          this.renderAllViews();
-          this.showToast("Sample data loaded.", "info");
-        }
-      });
-    }
-
-    // Clear All
-    if (clearAllDataBtn) {
-      clearAllDataBtn.addEventListener("click", () => {
-        if (confirm("Are you sure you want to clear ALL logged shifts? This cannot be undone.")) {
-          window.dataStore.clearAll();
-          this.renderAllViews();
-          this.showToast("All records cleared.", "warning");
-        }
-      });
     }
 
     // Export CSV & JSON
