@@ -332,6 +332,72 @@ class DailyPayApp {
   }
 
   /**
+   * Pull records from Google Sheet and refresh dashboard
+   */
+  async pullFromSheet() {
+    if (!window.sheetsClient.isConnected()) {
+      this.showToast("Google Sheet URL not configured. Click ⚙️ Settings first.", "warning");
+      const modal = document.getElementById("settingsModal");
+      if (modal) modal.classList.remove("hidden");
+      return;
+    }
+
+    const btns = document.querySelectorAll(".btn-sheet-pull");
+    btns.forEach(b => {
+      b.disabled = true;
+      b.dataset.prevHtml = b.innerHTML;
+      b.innerHTML = "<span>⏳ Pulling...</span>";
+    });
+
+    try {
+      const res = await window.sheetsClient.fetchFromSheet();
+      this.showToast(res.message, res.success ? "success" : "error");
+      if (res.success) {
+        this.renderAllViews();
+        this.checkUpsertStatus();
+      }
+    } catch (err) {
+      this.showToast("Pull failed: " + err.message, "error");
+    } finally {
+      btns.forEach(b => {
+        b.disabled = false;
+        b.innerHTML = b.dataset.prevHtml || "<span>⬇️ Pull from Sheet</span>";
+      });
+    }
+  }
+
+  /**
+   * Push all local records to Google Sheet in bulk
+   */
+  async pushToSheet() {
+    if (!window.sheetsClient.isConnected()) {
+      this.showToast("Google Sheet URL not configured. Click ⚙️ Settings first.", "warning");
+      const modal = document.getElementById("settingsModal");
+      if (modal) modal.classList.remove("hidden");
+      return;
+    }
+
+    const btns = document.querySelectorAll(".btn-sheet-push");
+    btns.forEach(b => {
+      b.disabled = true;
+      b.dataset.prevHtml = b.innerHTML;
+      b.innerHTML = "<span>⏳ Pushing...</span>";
+    });
+
+    try {
+      const res = await window.sheetsClient.bulkSyncToSheet();
+      this.showToast(res.message, res.success ? "success" : "error");
+    } catch (err) {
+      this.showToast("Push failed: " + err.message, "error");
+    } finally {
+      btns.forEach(b => {
+        b.disabled = false;
+        b.innerHTML = b.dataset.prevHtml || "<span>⬆️ Push to Sheet</span>";
+      });
+    }
+  }
+
+  /**
    * Edit existing shift
    */
   editShift(dateStr) {
@@ -578,6 +644,14 @@ class DailyPayApp {
           feedback.classList.add(result.success ? "text-emerald-400" : "text-rose-400");
           feedback.textContent = result.message;
         }
+
+        // Auto-save on successful test so user doesn't lose connection!
+        if (result.success && url) {
+          window.dataStore.saveSettings({ googleSheetUrl: url });
+          window.sheetsClient.updateStatusBadge("synced");
+          this.showToast("Google Sheet connected & saved!", "success");
+          this.pullFromSheet();
+        }
       });
     }
 
@@ -613,29 +687,12 @@ class DailyPayApp {
 
     // Sync Now (Pull from Sheet)
     if (syncNowBtn) {
-      syncNowBtn.addEventListener("click", async () => {
-        syncNowBtn.disabled = true;
-        syncNowBtn.textContent = "Pulling...";
-        const res = await window.sheetsClient.fetchFromSheet();
-        syncNowBtn.disabled = false;
-        syncNowBtn.textContent = "Pull from Google Sheet";
-        this.showToast(res.message, res.success ? "success" : "error");
-        if (res.success) {
-          this.renderAllViews();
-        }
-      });
+      syncNowBtn.addEventListener("click", () => this.pullFromSheet());
     }
 
     // Bulk Push to Sheet
     if (bulkPushBtn) {
-      bulkPushBtn.addEventListener("click", async () => {
-        bulkPushBtn.disabled = true;
-        bulkPushBtn.textContent = "Pushing...";
-        const res = await window.sheetsClient.bulkSyncToSheet();
-        bulkPushBtn.disabled = false;
-        bulkPushBtn.textContent = "Push All Local Records to Sheet";
-        this.showToast(res.message, res.success ? "success" : "error");
-      });
+      bulkPushBtn.addEventListener("click", () => this.pushToSheet());
     }
 
     // Reset Sample Data

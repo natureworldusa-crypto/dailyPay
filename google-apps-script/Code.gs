@@ -42,6 +42,14 @@ const HEADERS = [
  */
 function doGet(e) {
   try {
+    if (e && e.parameter && e.parameter.action === "test") {
+      return createJsonResponse({
+        status: "success",
+        message: "Google Apps Script connection is working successfully!",
+        timestamp: new Date().toISOString()
+      });
+    }
+
     const sheet = getOrCreateSheet();
     const rows = sheet.getDataRange().getValues();
     

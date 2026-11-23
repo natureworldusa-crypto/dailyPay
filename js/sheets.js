@@ -27,9 +27,17 @@ class GoogleSheetsClient {
    * Test connection to Google Apps Script Web App
    */
   async testConnection(customUrl = null) {
-    const url = (customUrl || this.getUrl()).trim();
+    let url = (customUrl || this.getUrl()).trim();
     if (!url) {
       return { success: false, message: "Please provide a valid Google Apps Script Web App URL." };
+    }
+
+    // Help users who mistakenly copy the Apps Script editor URL (/edit) instead of Web App (/exec)
+    if (url.includes("/edit")) {
+      return {
+        success: false,
+        message: "This is the Apps Script editor URL. Please use the Web App URL ending with /exec (from Deploy > New deployment > Web app)."
+      };
     }
 
     try {
@@ -54,7 +62,7 @@ class GoogleSheetsClient {
       console.error("Test connection error:", err);
       return {
         success: false,
-        message: "Failed to connect. Please make sure the Web App is deployed with 'Who has access: Anyone' and permissions were authorized."
+        message: "Failed to connect. Make sure the Web App is deployed with 'Who has access: Anyone' and permissions were authorized."
       };
     }
   }
@@ -151,7 +159,9 @@ class GoogleSheetsClient {
         return {
           success: true,
           count: data.records.length,
-          message: `Successfully loaded ${data.records.length} records from Google Sheet.`
+          message: data.records.length > 0 
+            ? `Successfully loaded ${data.records.length} records from Google Sheet.`
+            : "Connected to Google Sheet! The sheet is currently empty (0 shifts logged yet)."
         };
       } else {
         throw new Error(data.message || "Failed to parse records.");
@@ -246,31 +256,62 @@ class GoogleSheetsClient {
     const badge = document.getElementById("syncStatusBadge");
     const text = document.getElementById("syncStatusText");
     const icon = document.getElementById("syncStatusIcon");
-    if (!badge || !text) return;
+    const mainTag = document.getElementById("mainSyncStatusTag");
+    const mainSub = document.getElementById("mainSyncSubtext");
 
     if (!this.isConnected()) {
-      badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20";
-      text.textContent = "Local Storage (Sheet not connected)";
-      if (icon) icon.className = "w-3 h-3 text-amber-500";
+      if (badge) badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20";
+      if (text) text.textContent = "Google Sheet: Not Connected";
+      if (icon) icon.className = "w-2 h-2 rounded-full bg-amber-500";
+      if (mainTag) {
+        mainTag.className = "text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20";
+        mainTag.textContent = "Not Connected";
+      }
+      if (mainSub) mainSub.textContent = "Click Settings (⚙️) to paste your Google Apps Script URL to enable live sheet sync.";
       return;
     }
 
+    const timeStr = this.lastSyncTime ? `Synced (${this.lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : "Synced with Google Sheet";
+
     switch (status) {
       case "syncing":
-        badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20 animate-pulse";
-        text.textContent = "Syncing with Google Sheet...";
+        if (badge) badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20 animate-pulse";
+        if (text) text.textContent = "Syncing with Google Sheet...";
+        if (mainTag) {
+          mainTag.className = "text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse";
+          mainTag.textContent = "Syncing...";
+        }
+        if (mainSub) mainSub.textContent = "Communicating with your Google Sheet...";
         break;
       case "synced":
-        badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20";
-        text.textContent = this.lastSyncTime ? `Synced (${this.lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : "Synced with Google Sheet";
+        if (badge) badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20";
+        if (text) text.textContent = timeStr;
+        if (icon) icon.className = "w-2 h-2 rounded-full bg-emerald-500";
+        if (mainTag) {
+          mainTag.className = "text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+          mainTag.textContent = "Connected ✓";
+        }
+        if (mainSub) mainSub.textContent = `All shifts automatically upsert by date into your Google Sheet. Last synced: ${this.lastSyncTime ? this.lastSyncTime.toLocaleTimeString() : 'Just now'}`;
         break;
       case "error":
-        badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 text-rose-500 border border-rose-500/20";
-        text.textContent = "Sync error (saved locally)";
+        if (badge) badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 text-rose-500 border border-rose-500/20";
+        if (text) text.textContent = "Sync error (saved locally)";
+        if (icon) icon.className = "w-2 h-2 rounded-full bg-rose-500";
+        if (mainTag) {
+          mainTag.className = "text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20";
+          mainTag.textContent = "Sync Error";
+        }
+        if (mainSub) mainSub.textContent = "Unable to reach Google Sheet. Data saved in browser memory.";
         break;
       default:
-        badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20";
-        text.textContent = "Google Sheet Connected";
+        if (badge) badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20";
+        if (text) text.textContent = "Google Sheet Connected";
+        if (icon) icon.className = "w-2 h-2 rounded-full bg-emerald-500";
+        if (mainTag) {
+          mainTag.className = "text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+          mainTag.textContent = "Connected ✓";
+        }
+        if (mainSub) mainSub.textContent = "All shifts automatically upsert by date into your Google Sheet.";
     }
   }
 }
