@@ -161,9 +161,8 @@ class GoogleSheetsClient {
 
       const data = await response.json();
       if (data.status === "success" && Array.isArray(data.records)) {
-        if (data.records.length > 0) {
-          window.dataStore.setAllRecords(data.records);
-        }
+        // ALWAYS synchronize local storage with the exact state of the Google Sheet (even if 0 records!)
+        window.dataStore.setAllRecords(data.records);
         this.lastSyncTime = new Date();
         this.updateStatusBadge("synced");
         return {
@@ -171,7 +170,7 @@ class GoogleSheetsClient {
           count: data.records.length,
           message: data.records.length > 0 
             ? `Successfully loaded ${data.records.length} records from Google Sheet.`
-            : "Connected to Google Sheet! The sheet is currently empty (0 shifts logged yet)."
+            : "Google Sheet is empty (0 shifts). Local app data cleared to match your sheet."
         };
       } else {
         throw new Error(data.message || "Failed to parse records.");

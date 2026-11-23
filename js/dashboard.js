@@ -478,6 +478,34 @@ class DashboardManager {
       this.taxDoughnutChart.destroy();
     }
 
+    if (records.length === 0) {
+      this.taxDoughnutChart = new Chart(ctx, {
+        type: "doughnut",
+        data: {
+          labels: ["No shifts logged"],
+          datasets: [{
+            data: [1],
+            backgroundColor: ["#1e293b"],
+            borderColor: "#0f172a",
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "bottom",
+              labels: { color: "#64748b", font: { family: "Inter, sans-serif", size: 11 } }
+            },
+            tooltip: { enabled: false }
+          },
+          cutout: "70%"
+        }
+      });
+      return;
+    }
+
     this.taxDoughnutChart = new Chart(ctx, {
       type: "doughnut",
       data: {

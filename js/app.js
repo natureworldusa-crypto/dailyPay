@@ -436,6 +436,18 @@ class DailyPayApp {
   }
 
   /**
+   * Clear all local shifts (e.g. after emptying Google Sheet)
+   */
+  clearLocalData() {
+    if (confirm("Reset and clear all local shifts in this app? This resets the dashboard and history to completely empty.")) {
+      window.dataStore.clearAll();
+      this.renderAllViews();
+      this.checkUpsertStatus();
+      this.showToast("All local records cleared. Dashboard is now empty.", "info");
+    }
+  }
+
+  /**
    * Edit existing shift
    */
   editShift(dateStr) {
@@ -547,11 +559,15 @@ class DailyPayApp {
 
     const records = window.dataStore.records;
 
-    // Populate month dropdown options if empty
-    if (monthSelect && monthSelect.options.length <= 1) {
+    // Dynamically rebuild month filter options to match current records
+    if (monthSelect) {
       const months = window.dashboardManager.getMonthlyGroups(records);
+      const currentVal = filterMonth || monthSelect.value || "";
       monthSelect.innerHTML = `<option value="">All Months (${records.length} shifts)</option>` +
         months.map(m => `<option value="${m.key}">${m.label} (${m.records.length} shifts)</option>`).join("");
+      if (currentVal && months.some(m => m.key === currentVal)) {
+        monthSelect.value = currentVal;
+      }
     }
 
     const searchTerm = (document.getElementById("historySearchInput")?.value || "").toLowerCase();
@@ -568,7 +584,7 @@ class DailyPayApp {
     }
 
     if (filtered.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-500">No shifts match your search.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-slate-500">No shifts logged yet. Enter your first shift on the Log Shift tab!</td></tr>`;
       return;
     }
 
