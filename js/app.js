@@ -27,13 +27,31 @@ class DailyPayApp {
       window.sheetsClient.updateStatusBadge("synced");
       // Auto-fetch if enabled
       if (window.dataStore.settings.autoSync) {
-        window.sheetsClient.fetchFromSheet().then(() => {
-          this.renderAllViews();
-        }).catch(console.warn);
+        this.pullFromSheet(true);
       }
     } else {
       window.sheetsClient.updateStatusBadge("local");
     }
+
+    // Auto-sync when returning to the tab from Google Sheets
+    window.addEventListener("focus", () => {
+      if (window.sheetsClient && window.sheetsClient.isConnected() && window.dataStore.settings.autoSync) {
+        this.pullFromSheet(true);
+      }
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && window.sheetsClient && window.sheetsClient.isConnected() && window.dataStore.settings.autoSync) {
+        this.pullFromSheet(true);
+      }
+    });
+
+    // Periodic auto-sync every 25 seconds if active
+    setInterval(() => {
+      if (document.visibilityState === "visible" && window.sheetsClient && window.sheetsClient.isConnected() && window.dataStore.settings.autoSync) {
+        this.pullFromSheet(true);
+      }
+    }, 25000);
   }
 
   /**
@@ -371,36 +389,49 @@ class DailyPayApp {
 
   /**
    * Pull records from Google Sheet and refresh dashboard
+   * @param {boolean} silent If true, suppresses modal alerts and toasts unless error
    */
-  async pullFromSheet() {
+  async pullFromSheet(silent = false) {
     if (!window.sheetsClient.isConnected()) {
-      this.showToast("Google Sheet URL not configured. Click ⚙️ Settings first.", "warning");
-      const modal = document.getElementById("settingsModal");
-      if (modal) modal.classList.remove("hidden");
+      if (!silent) {
+        this.showToast("Google Sheet URL not configured. Click ⚙️ Settings first.", "warning");
+        const modal = document.getElementById("settingsModal");
+        if (modal) modal.classList.remove("hidden");
+      }
       return;
     }
 
+    if (window.sheetsClient.isSyncing) return; // Prevent concurrent requests
+
     const btns = document.querySelectorAll(".btn-sheet-pull");
-    btns.forEach(b => {
-      b.disabled = true;
-      b.dataset.prevHtml = b.innerHTML;
-      b.innerHTML = "<span>⏳ Pulling...</span>";
-    });
+    if (!silent) {
+      btns.forEach(b => {
+        b.disabled = true;
+        b.dataset.prevHtml = b.innerHTML;
+        b.innerHTML = "<span>⏳ Pulling...</span>";
+      });
+    }
 
     try {
       const res = await window.sheetsClient.fetchFromSheet();
-      this.showToast(res.message, res.success ? "success" : "error");
+      if (!silent) {
+        this.showToast(res.message, res.success ? "success" : "error");
+      }
       if (res.success) {
         this.renderAllViews();
         this.checkUpsertStatus();
       }
     } catch (err) {
-      this.showToast("Pull failed: " + err.message, "error");
+      if (!silent) {
+        this.showToast("Pull failed: " + err.message, "error");
+      }
     } finally {
-      btns.forEach(b => {
-        b.disabled = false;
-        b.innerHTML = b.dataset.prevHtml || "<span>⬇️ Pull from Sheet</span>";
-      });
+      if (!silent) {
+        btns.forEach(b => {
+          b.disabled = false;
+          b.innerHTML = b.dataset.prevHtml || "<span>⬇️ Pull from Sheet</span>";
+        });
+      }
     }
   }
 
@@ -438,12 +469,24 @@ class DailyPayApp {
   /**
    * Clear all local shifts (e.g. after emptying Google Sheet)
    */
-  clearLocalData() {
-    if (confirm("Reset and clear all local shifts in this app? This resets the dashboard and history to completely empty.")) {
+  async clearLocalData() {
+    const isConnected = window.sheetsClient && window.sheetsClient.isConnected();
+    const confirmMsg = isConnected
+      ? "Reset and clear all shifts? This clears all local data and will also remove all records in your connected Google Sheet."
+      : "Reset and clear all local shifts in this app? This resets the dashboard and history to completely empty.";
+
+    if (confirm(confirmMsg)) {
       window.dataStore.clearAll();
+      if (isConnected) {
+        try {
+          await window.sheetsClient.clearAllInSheet();
+        } catch (e) {
+          console.warn("Could not clear Google Sheet:", e);
+        }
+      }
       this.renderAllViews();
       this.checkUpsertStatus();
-      this.showToast("All local records cleared. Dashboard is now empty.", "info");
+      this.showToast("All records cleared. Dashboard & tabs are now empty.", "info");
     }
   }
 
@@ -536,15 +579,20 @@ class DailyPayApp {
       }
     });
 
-    // Re-render charts if entering dashboard tab
+    // Refresh all views on every tab switch
+    this.renderAllViews();
+    this.checkUpsertStatus();
+
+    // Re-render charts with slight delay if entering dashboard tab to recalculate canvas size
     if (tabName === "dashboard") {
       setTimeout(() => {
         window.dashboardManager.renderCharts(window.dataStore.records);
-      }, 100);
+      }, 60);
     }
 
-    if (tabName === "history") {
-      this.renderFullHistoryTable();
+    // Silently check Google Sheet for updates or deletions whenever user switches tabs
+    if (window.sheetsClient && window.sheetsClient.isConnected() && window.dataStore.settings.autoSync) {
+      this.pullFromSheet(true);
     }
   }
 
@@ -825,9 +873,7 @@ class DailyPayApp {
 
   renderAllViews() {
     window.dashboardManager.render();
-    if (this.activeTab === "history") {
-      this.renderFullHistoryTable();
-    }
+    this.renderFullHistoryTable();
   }
 
   downloadFile(content, fileName, mimeType) {

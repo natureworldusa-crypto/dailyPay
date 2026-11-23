@@ -56,6 +56,7 @@ function doGet(e) {
     if (rows.length <= 1) {
       return createJsonResponse({
         status: "success",
+        count: 0,
         records: []
       });
     }
@@ -65,20 +66,28 @@ function doGet(e) {
 
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
-      if (!row[0]) continue; // Skip empty rows
+      if (!row || !row[0]) continue; // Skip empty rows
 
       // Format date safely as YYYY-MM-DD
       let dateStr = row[0];
       if (dateStr instanceof Date) {
         dateStr = Utilities.formatDate(dateStr, Session.getScriptTimeZone() || "America/New_York", "yyyy-MM-dd");
+      } else {
+        dateStr = String(dateStr).trim();
       }
 
+      if (!dateStr || dateStr === "") continue;
+
+      const totalHours = Number(row[4]) || 0;
+      // Skip blank phantom rows where hours is 0 and times are not set
+      if (totalHours <= 0 && !row[1] && !row[2]) continue;
+
       records.push({
-        date: String(dateStr).trim(),
+        date: dateStr,
         startTime: String(row[1] || ""),
         endTime: String(row[2] || ""),
         breakMinutes: Number(row[3]) || 0,
-        totalHours: Number(row[4]) || 0,
+        totalHours: totalHours,
         hourlyRate: Number(row[5]) || 12,
         grossPay: Number(row[6]) || 0,
         taxAmount: Number(row[7]) || 0,
@@ -102,7 +111,7 @@ function doGet(e) {
 }
 
 /**
- * Handle HTTP POST Requests (Upsert, Sync, or Delete)
+ * Handle HTTP POST Requests (Upsert, Sync, Delete, or ClearAll)
  */
 function doPost(e) {
   try {
@@ -119,6 +128,10 @@ function doPost(e) {
         message: "Google Apps Script connection is working successfully!",
         timestamp: new Date().toISOString()
       });
+    }
+
+    if (action === "clearAll") {
+      return handleClearAll();
     }
 
     if (action === "delete") {
@@ -204,6 +217,21 @@ function handleUpsert(data) {
       message: "New record for " + dateTarget + " added successfully."
     });
   }
+}
+
+/**
+ * Clear all records from sheet (leaves headers intact)
+ */
+function handleClearAll() {
+  const sheet = getOrCreateSheet();
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.deleteRows(2, lastRow - 1);
+  }
+  return createJsonResponse({
+    status: "success",
+    message: "All shift records cleared from Google Sheet."
+  });
 }
 
 /**

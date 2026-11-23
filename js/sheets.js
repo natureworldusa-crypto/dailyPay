@@ -206,6 +206,27 @@ class GoogleSheetsClient {
   }
 
   /**
+   * Clear all records in Google Sheet (rows 2+)
+   */
+  async clearAllInSheet() {
+    const url = this.getUrl();
+    if (!this.isConnected()) return { success: false, message: "Not connected" };
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "clearAll" })
+      });
+      const data = await response.json();
+      return { success: data && data.status === "success", message: data && data.message };
+    } catch (err) {
+      console.warn("Failed to clear Google Sheet:", err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
    * Sync all local records to Google Sheet in bulk
    */
   async bulkSyncToSheet() {

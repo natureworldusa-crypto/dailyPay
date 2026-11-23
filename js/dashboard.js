@@ -401,6 +401,46 @@ class DashboardManager {
       this.earningsChart.destroy();
     }
 
+    if (records.length === 0) {
+      this.earningsChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: ["No shifts logged"],
+          datasets: [{
+            label: "Gross",
+            data: [0],
+            backgroundColor: "rgba(51, 65, 85, 0.2)",
+            borderColor: "rgba(51, 65, 85, 0.4)",
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: false }
+          },
+          scales: {
+            x: {
+              grid: { color: "rgba(255, 255, 255, 0.05)" },
+              ticks: { color: "#64748b" }
+            },
+            y: {
+              min: 0,
+              max: 50,
+              grid: { color: "rgba(255, 255, 255, 0.05)" },
+              ticks: {
+                color: "#64748b",
+                callback: (val) => `$${val}`
+              }
+            }
+          }
+        }
+      });
+      return;
+    }
+
     this.earningsChart = new Chart(ctx, {
       type: "bar",
       data: {
@@ -558,6 +598,45 @@ class DashboardManager {
 
     if (this.hoursChart) {
       this.hoursChart.destroy();
+    }
+
+    if (records.length === 0) {
+      this.hoursChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: ["No shifts logged"],
+          datasets: [{
+            label: "Hours Worked",
+            data: [0],
+            borderColor: "rgba(51, 65, 85, 0.4)",
+            pointBackgroundColor: "rgba(51, 65, 85, 0.4)"
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: false }
+          },
+          scales: {
+            x: {
+              grid: { color: "rgba(255, 255, 255, 0.05)" },
+              ticks: { color: "#64748b" }
+            },
+            y: {
+              min: 0,
+              max: 8,
+              grid: { color: "rgba(255, 255, 255, 0.05)" },
+              ticks: {
+                color: "#64748b",
+                callback: (val) => `${val}h`
+              }
+            }
+          }
+        }
+      });
+      return;
     }
 
     this.hoursChart = new Chart(ctx, {
