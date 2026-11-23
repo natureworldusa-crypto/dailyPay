@@ -104,22 +104,32 @@ class GoogleSheetsClient {
         body: JSON.stringify(payload)
       });
 
+      if (!response.ok) {
+        throw new Error(`Server returned HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const result = await response.json();
+      if (!result || result.status !== "success") {
+        const errorDetail = (result && result.message) || "Script returned failure status without message";
+        throw new Error(errorDetail);
+      }
+
       this.lastSyncTime = new Date();
       this.updateStatusBadge("synced");
 
       return {
-        success: result.status === "success",
+        success: true,
         action: result.action,
-        message: result.message || "Synced to Google Sheet"
+        rowIndex: result.rowIndex,
+        message: result.message || `Successfully ${result.action || 'saved'} in Google Sheet!`
       };
     } catch (err) {
-      console.warn("Error upserting to Google Sheet:", err);
+      console.error("Error upserting to Google Sheet:", err);
       this.updateStatusBadge("error");
       return {
         success: false,
         error: err.message,
-        message: "Saved locally. Google Sheet sync pending."
+        message: err.message || "Failed to save to Google Sheet. Check permissions or network."
       };
     } finally {
       this.isSyncing = false;

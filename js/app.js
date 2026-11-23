@@ -282,6 +282,10 @@ class DailyPayApp {
     const hourlyRate = Number(document.getElementById("shiftHourlyRate").value) || 12;
     const notes = document.getElementById("shiftNotes").value.trim();
 
+    const errorBanner = document.getElementById("shiftErrorBanner");
+    const errorText = document.getElementById("shiftErrorText");
+    if (errorBanner) errorBanner.classList.add("hidden");
+
     if (!date) {
       this.showToast("Please select a date.", "error");
       return;
@@ -290,6 +294,15 @@ class DailyPayApp {
     if (totalHours <= 0) {
       this.showToast("Total hours must be greater than 0.", "error");
       return;
+    }
+
+    const submitBtn = document.getElementById("submitShiftBtn");
+    const submitBtnText = document.getElementById("submitBtnText");
+    const originalBtnText = submitBtnText ? submitBtnText.textContent : "Save Shift & Sync to Sheet";
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      if (submitBtnText) submitBtnText.textContent = "⏳ Saving to Google Sheet...";
     }
 
     const record = {
@@ -302,33 +315,58 @@ class DailyPayApp {
       notes
     };
 
-    // 1. Upsert locally
-    const { isNew, record: savedRecord } = window.dataStore.upsertRecord(record);
+    try {
+      // If Google Sheet is connected, verify Google Sheet write first!
+      if (window.sheetsClient.isConnected()) {
+        const sheetRes = await window.sheetsClient.upsertToSheet(record);
 
-    this.showToast(
-      isNew ? `Saved new shift for ${date} (${totalHours.toFixed(2)}h)` : `Upserted/Updated shift for ${date}`,
-      "success"
-    );
+        if (!sheetRes.success) {
+          // Explicitly fail and show the exact error message
+          console.error("Google Sheet write failed:", sheetRes);
+          this.showToast(`❌ Google Sheet Error: ${sheetRes.message}`, "error");
 
-    // Trigger celebratory confetti effect if available
-    if (typeof confetti === "function") {
-      confetti({ particleCount: 40, spread: 60, origin: { y: 0.8 } });
-    }
-
-    // 2. Trigger Google Sheets Upsert in background
-    if (window.sheetsClient.isConnected()) {
-      window.sheetsClient.upsertToSheet(savedRecord).then(res => {
-        if (res.success) {
-          this.showToast(`Synced with Google Sheet (${res.action || 'updated'})`, "success");
-        } else {
-          this.showToast("Saved locally. Google Sheet sync pending.", "warning");
+          if (errorBanner && errorText) {
+            errorText.innerHTML = `<strong>Data was NOT saved to Google Sheet!</strong><br><span class="text-rose-200">${sheetRes.message}</span><br><span class="text-slate-400 mt-1 block">Your entered hours remain in the form. Please check your internet connection or verify Apps Script deployment permissions (Who has access: Anyone).</span>`;
+            errorBanner.classList.remove("hidden");
+            errorBanner.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+          return;
         }
-      });
-    }
 
-    // 3. Refresh views & check upsert status
-    this.renderAllViews();
-    this.checkUpsertStatus();
+        // Google Sheet insertion succeeded!
+        const { isNew } = window.dataStore.upsertRecord(record);
+
+        if (typeof confetti === "function") {
+          confetti({ particleCount: 40, spread: 60, origin: { y: 0.8 } });
+        }
+
+        const actionText = sheetRes.action === "updated" ? "Updated existing row" : "Inserted new row";
+        this.showToast(`✅ Google Sheet Synced! ${actionText} (${date})`, "success");
+
+        if (errorBanner) errorBanner.classList.add("hidden");
+
+        this.renderAllViews();
+        this.checkUpsertStatus();
+      } else {
+        // Not connected to Google Sheet
+        const { isNew } = window.dataStore.upsertRecord(record);
+        this.showToast(`⚠️ Google Sheet not connected. Shift saved locally in browser only.`, "warning");
+        this.renderAllViews();
+        this.checkUpsertStatus();
+      }
+    } catch (err) {
+      console.error("Unexpected error submitting shift:", err);
+      this.showToast(`❌ Error saving shift: ${err.message}`, "error");
+      if (errorBanner && errorText) {
+        errorText.textContent = `Error: ${err.message}`;
+        errorBanner.classList.remove("hidden");
+      }
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        if (submitBtnText) submitBtnText.textContent = originalBtnText;
+      }
+    }
   }
 
   /**
@@ -795,14 +833,17 @@ class DailyPayApp {
     const toast = document.createElement("div");
     const colorClasses = {
       success: "bg-emerald-600 text-white border-emerald-400",
-      error: "bg-rose-600 text-white border-rose-400",
+      error: "bg-rose-700 text-white border-rose-500 shadow-rose-950/50",
       warning: "bg-amber-600 text-white border-amber-400",
       info: "bg-blue-600 text-white border-blue-400"
     }[type] || "bg-slate-800 text-white border-slate-700";
 
-    toast.className = `flex items-center gap-2 px-4 py-3 rounded-xl shadow-2xl border text-sm font-medium transition-all transform translate-y-2 opacity-0 duration-300 ${colorClasses}`;
+    const duration = type === "error" ? 6500 : 3500;
+
+    toast.className = `flex items-center justify-between gap-3 px-4 py-3 rounded-xl shadow-2xl border text-sm font-medium transition-all transform translate-y-2 opacity-0 duration-300 ${colorClasses}`;
     toast.innerHTML = `
-      <span>${message}</span>
+      <span class="flex-1">${message}</span>
+      <button type="button" onclick="this.parentElement.remove()" class="text-white/80 hover:text-white text-xs font-bold px-1">✕</button>
     `;
 
     container.appendChild(toast);
@@ -814,7 +855,7 @@ class DailyPayApp {
     setTimeout(() => {
       toast.classList.add("opacity-0", "translate-y-2");
       setTimeout(() => toast.remove(), 300);
-    }, 3500);
+    }, duration);
   }
 
   setText(id, text) {

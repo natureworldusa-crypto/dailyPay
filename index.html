@@ -160,6 +160,18 @@
     <!-- ================================================================= -->
     <div id="tab-tracker" class="tab-pane space-y-6">
       
+      <!-- Google Sheet Failure Error Banner -->
+      <div id="shiftErrorBanner" class="hidden p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-start gap-3 shadow-lg">
+        <span class="text-2xl">❌</span>
+        <div class="text-sm flex-1">
+          <p class="font-bold text-rose-200 text-sm">Google Sheet Save Failed</p>
+          <p id="shiftErrorText" class="text-xs text-rose-300/90 mt-1 leading-relaxed">
+            Data was not inserted into Google Sheet. Check your connection or Apps Script permissions.
+          </p>
+        </div>
+        <button type="button" onclick="document.getElementById('shiftErrorBanner').classList.add('hidden')" class="text-rose-400 hover:text-white text-xs p-1">✕</button>
+      </div>
+
       <!-- Upsert Notice Banner (Shown dynamically when selected date exists) -->
       <div id="upsertNoticeBanner" class="hidden p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-start gap-3">
         <span class="text-xl">⚠️</span>
